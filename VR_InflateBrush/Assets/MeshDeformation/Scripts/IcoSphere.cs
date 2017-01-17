@@ -221,7 +221,7 @@ namespace GeneratedGeometry {
             mesh.normals = normales;
             //mesh.RecalculateNormals();
             mesh.RecalculateBounds();
-            mesh.Optimize();
+            ;
         }
 
         public static void Harden(ref List<Vector3> vertices) {

@@ -200,6 +200,7 @@ public class MeshDeformer : MonoBehaviour {
             vertices[i] = Vector3.Lerp(vertices[i], targetVertices[i], Time.deltaTime * speed);
         }
         mesh.vertices = vertices;
+
         //mesh.RecalculateBounds();
     }
 
@@ -220,24 +221,30 @@ public class MeshDeformer : MonoBehaviour {
     private void UpdateMeshSolid() {
         UpdatePlayerDiscance();
 
+        Vector3 startVector;
+
         int i = 0;
         foreach (Vertex item in unique) {
+            if (relaxMesh)
+                startVector = item.oVertex;
+            else
+                startVector = item.tVertex;
 
             float deformFactor = 
                 GetRamdomValue() *
                 power *
-                GetApproximationDeformation(item.oVertex) *
+                GetApproximationDeformation(startVector) *
                 GetFFTDeformationValue(i++);
 
             // apply deformation
-            item.tVertex = item.oVertex + item.normal * ScaleDeformation(deformFactor);
+            item.tVertex = startVector + item.normal * ScaleDeformation(deformFactor);
 
             if (reactOnPlayerDistance) { // vertices react on player position
                 if (approxDistance < reactionDistance) {
-                    UpdateTargetVertices(item, false);
+                    UpdateTargetVertices(item, relaxMesh);
                 }
                 else { // reset mesh if player walks away
-                    UpdateTargetVertices(item, true);
+                    UpdateTargetVertices(item, relaxMesh);
                 }
             }
             else { // this happens when player position check is deactivated
@@ -310,9 +317,15 @@ public class MeshDeformer : MonoBehaviour {
 
     // apply new position to all target vertices
     private void UpdateTargetVertices(Vertex vertex, bool relax) {
+        Vector3 startVector;
+        if (relaxMesh)
+            startVector = vertex.oVertex;
+        else
+            startVector = vertex.tVertex;
+
         if (relax && reactOnPlayerDistance)
             foreach (int index in vertex.indices)
-                targetVertices[index] = vertex.oVertex;
+                targetVertices[index] = startVector;
 
         else // reset mesh if player walks away
             foreach (int index in vertex.indices)
