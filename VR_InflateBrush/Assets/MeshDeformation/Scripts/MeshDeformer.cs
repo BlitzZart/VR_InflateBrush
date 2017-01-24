@@ -77,9 +77,8 @@ public class MeshDeformer : MonoBehaviour {
     public bool solidDeformation = true;
     public bool relaxMesh = false;
     public bool reactOnPlayerDistance = false;
-    public bool addFFTAndRandomToInflation = false;
-    [Range(0.0f, 10)]
-    public float reactionDistance = 5;
+    [Range(0.0f, 2)]
+    public float reactionDistance = 2;
 
     private Vector3[] vertices;
     public Vector3[] Vertices {
@@ -102,30 +101,18 @@ public class MeshDeformer : MonoBehaviour {
     float scaleImpusleValue = 0;
 
     [Header("Overall power of deformation:")]
-    [Range(0.0f, 50)]
+    [Range(0, 0.1f)]
     public float power = 1.0f;
     [Header("0 = both, -1 = negative only, 1 = positive only")]
     [Header("Set deformation direction:")]
     [Range(-1, 1)]
     public int direction = 0;
 
-    [Header("Influence of FFT:")]
-    [Range(0.0f, 2)]
-    public float fftPower = 1.0f;
-    [Header("Noise floor:")]
-    [Range(0.0f, 10.0f)]
-    public float randomPower = 1.0f;
     [Header("Speed of linear interpolation:")]
     [Range(0.0f, 25.0f)]
     public float speed = 1.0f;
-    [Header("Update rate of animation:")]
-    [Range(0.0f, 1.0f)]
-    public float rate = 0.1f; // for music visualization beat detection would be nice    
-
-    private float defaultVibration = 0.02f;
 
     // used for player position independend deformation
-    [Header("Steady inflation: set FFT power and random power 0.")]
     [Header("Reaction distance uses approximator")]
     public Transform approximator;
     private Vector3 approxPosition;
@@ -179,17 +166,11 @@ public class MeshDeformer : MonoBehaviour {
     private float current = 0;
     // Update is called once per frame
     void Update() {
-        if (current < rate) {
-            current += Time.deltaTime;
-        }
-        else {
-            current = 0;
 
-            if (solidDeformation)
-                UpdateMeshSolid();
-            else
-                UpdateMeshBreaking();
-        }
+        if (solidDeformation)
+            UpdateMeshSolid();
+        else
+            UpdateMeshBreaking();
 
         ProcessObjectScale();
 
@@ -209,10 +190,9 @@ public class MeshDeformer : MonoBehaviour {
         UpdatePlayerDiscance();
 
         for (int i = 0; i < oV.Length; i++) {
-            float deformFactor = GetRamdomValue() *
+            float deformFactor =
                 power *
-                GetApproximationDeformation(oV[i]) *
-                GetFFTDeformationValue(i);
+                GetApproximationDeformation(oV[i]);
 
             targetVertices[i] = oV[i] + mesh.normals[i] * ScaleDeformation(deformFactor);
         }
@@ -230,11 +210,9 @@ public class MeshDeformer : MonoBehaviour {
             else
                 startVector = item.tVertex;
 
-            float deformFactor = 
-                GetRamdomValue() *
+            float deformFactor =
                 power *
-                GetApproximationDeformation(startVector) *
-                GetFFTDeformationValue(i++);
+                GetApproximationDeformation(startVector);
 
             // apply deformation
             item.tVertex = startVector + item.normal * ScaleDeformation(deformFactor);
@@ -259,11 +237,6 @@ public class MeshDeformer : MonoBehaviour {
         scaleImpusleValue = Mathf.Lerp(scaleImpusleValue, 1, Time.deltaTime * scaleDownSpeed);
     }
 
-    // calculates deforamtion factor for each vertex based on fft values
-    private float GetFFTDeformationValue(int i) {
-        return (defaultVibration * Mathf.Clamp01(power) + offsets[i % offsets.Length] * fftPower);
-    }
-
     private float ScaleDeformation(float value) {
         if (direction == 0)
             return value;
@@ -271,17 +244,6 @@ public class MeshDeformer : MonoBehaviour {
             return -Mathf.Abs(value);
         else
             return Mathf.Abs(value);
-    }
-
-    private float GetRamdomValue() {
-        float noiseInfluence = .333f;
-        if (randomPower != 0) // randomPower 0 causes a static inflation 
-            if (addFFTAndRandomToInflation) // apply random noise on inflated mesh
-                noiseInfluence += UnityEngine.Random.Range(-randomPower, randomPower);
-            else // apply random noise on uninflated mesh
-                noiseInfluence = UnityEngine.Random.Range(-randomPower, randomPower);
-
-        return noiseInfluence;
     }
 
     private float GetApproximationDeformation(Vector3 v) {

@@ -13,6 +13,6 @@ public class ShowFPS : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-        uiText.text = (1.0f / Time.deltaTime).ToString("0.");
+        uiText.text = (1.0f / Time.smoothDeltaTime).ToString("0.");
 	}
 }
