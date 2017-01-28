@@ -182,7 +182,7 @@ public class MeshDeformer : MonoBehaviour {
         }
         mesh.vertices = vertices;
 
-        //mesh.RecalculateBounds();
+        mesh.RecalculateBounds(); // important for proper cullung
     }
 
 
