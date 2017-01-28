@@ -74,9 +74,15 @@ public class MeshDeformer : MonoBehaviour {
         }
     }
 
+    public GameObject vertexMarkerPrefab;
+    private List<MeshRenderer> vertexMarkerPool;
+    private int vertexMarkerAmount = 23;
+    private int closeToApproximatorCnt = 0;
+
     public bool solidDeformation = true;
     public bool relaxMesh = false;
     public bool reactOnPlayerDistance = false;
+    public bool applyDeformation = true;
     [Range(0.0f, 2)]
     public float reactionDistance = 2;
 
@@ -151,9 +157,30 @@ public class MeshDeformer : MonoBehaviour {
     // Use this for initialization
     void Start() {
         ResetMesh();
-
+        InitVertexMarker();
         initialScale = transform.localScale;
     }
+    void Update()
+    {
+        if (solidDeformation)
+            UpdateMeshSolid();
+        else
+            UpdateMeshBreaking();
+
+        ProcessObjectScale();
+
+        vertices = mesh.vertices;
+        for (int i = 0; i < oV.Length; i++)
+        {
+            //if (positiveDeformation & targetVertices[i].sqrMagnitude < 0)
+            //    targetVertices[i] *= -1;
+            vertices[i] = Vector3.Lerp(vertices[i], targetVertices[i], Time.deltaTime * speed);
+        }
+        mesh.vertices = vertices;
+
+        mesh.RecalculateBounds(); // important for proper cullung
+    }
+
 
     public void ApplyScaleImpulse() {
         //scaleImpusleValue = 1.2f;
@@ -165,30 +192,24 @@ public class MeshDeformer : MonoBehaviour {
 
     private float current = 0;
     // Update is called once per frame
-    void Update() {
 
-        if (solidDeformation)
-            UpdateMeshSolid();
-        else
-            UpdateMeshBreaking();
 
-        ProcessObjectScale();
-
-        vertices = mesh.vertices;
-        for (int i = 0; i < oV.Length; i++) {
-            //if (positiveDeformation & targetVertices[i].sqrMagnitude < 0)
-            //    targetVertices[i] *= -1;
-            vertices[i] = Vector3.Lerp(vertices[i], targetVertices[i], Time.deltaTime * speed);
+    private void InitVertexMarker()
+    {
+        vertexMarkerPool = new List<MeshRenderer>();
+        for (int i = 0; i < vertexMarkerAmount; i++)
+        {
+            GameObject go = Instantiate(vertexMarkerPrefab, transform);
+            MeshRenderer mr = go.GetComponent<MeshRenderer>();
+            mr.enabled = false;
+            vertexMarkerPool.Add(mr);
         }
-        mesh.vertices = vertices;
-
-        mesh.RecalculateBounds(); // important for proper cullung
     }
-
 
     private void UpdateMeshBreaking() {
         UpdatePlayerDiscance();
-
+        foreach (MeshRenderer item in vertexMarkerPool)
+            item.enabled = false;
         for (int i = 0; i < oV.Length; i++) {
             float deformFactor =
                 power *
@@ -203,7 +224,10 @@ public class MeshDeformer : MonoBehaviour {
 
         Vector3 startVector;
 
-        int i = 0;
+        foreach (MeshRenderer item in vertexMarkerPool)
+            item.enabled = false;
+
+        closeToApproximatorCnt = 0;
         foreach (Vertex item in unique) {
             if (relaxMesh)
                 startVector = item.oVertex;
@@ -214,19 +238,26 @@ public class MeshDeformer : MonoBehaviour {
                 power *
                 GetApproximationDeformation(startVector);
 
-            // apply deformation
-            item.tVertex = startVector + item.normal * ScaleDeformation(deformFactor);
+            if (applyDeformation)
+            {
+                // apply deformation
+                item.tVertex = startVector + item.normal * ScaleDeformation(deformFactor);
 
-            if (reactOnPlayerDistance) { // vertices react on player position
-                if (approxDistance < reactionDistance) {
+                if (reactOnPlayerDistance)
+                { // vertices react on player position
+                    if (approxDistance < reactionDistance)
+                    {
+                        UpdateTargetVertices(item, relaxMesh);
+                    }
+                    else
+                    { // reset mesh if player walks away
+                        UpdateTargetVertices(item, relaxMesh);
+                    }
+                }
+                else
+                { // this happens when player position check is deactivated
                     UpdateTargetVertices(item, relaxMesh);
                 }
-                else { // reset mesh if player walks away
-                    UpdateTargetVertices(item, relaxMesh);
-                }
-            }
-            else { // this happens when player position check is deactivated
-                UpdateTargetVertices(item, relaxMesh);
             }
         }
     }
@@ -246,12 +277,21 @@ public class MeshDeformer : MonoBehaviour {
             return Mathf.Abs(value);
     }
 
-    private float GetApproximationDeformation(Vector3 v) {
-        if (reactOnPlayerDistance && approximator != null && reactionDistance > 0) {
+    private float GetApproximationDeformation(Vector3 v)
+    {
+        if (reactOnPlayerDistance && approximator != null && reactionDistance > 0)
+        {
             approxDistance = Vector3.Distance(approxPosition, v);
 
             if (approxDistance > reactionDistance)
                 return 0;
+
+            if (closeToApproximatorCnt < vertexMarkerPool.Count)
+            {
+                vertexMarkerPool[closeToApproximatorCnt].transform.localPosition = v;
+                vertexMarkerPool[closeToApproximatorCnt].enabled = true;
+                closeToApproximatorCnt++;
+            }
 
             return (reactionDistance / approxDistance);
         }

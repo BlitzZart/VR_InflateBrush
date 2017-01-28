@@ -42,10 +42,10 @@ public class ObjectManipulationController : MonoBehaviour {
     }
 
     private void OnTriggerClicked(object sender, ClickedEventArgs e) {
-        deformer.reactOnPlayerDistance = true;
+        deformer.applyDeformation = true;
     }
 
     private void OnTriggerUnclicked(object sender, ClickedEventArgs e) {
-        deformer.reactOnPlayerDistance = false;
+        deformer.applyDeformation = false;
     }
 }
