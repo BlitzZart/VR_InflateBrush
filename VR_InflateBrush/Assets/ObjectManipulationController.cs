@@ -21,7 +21,7 @@ public class ObjectManipulationController : MonoBehaviour {
 
     void Update() {
         if (vrController.gripped) {
-            deformer.transform.position = startPositionObject + (startPositionController - transform.position);
+            deformer.transform.position = startPositionObject - (startPositionController - transform.position);
         }
     }
 
